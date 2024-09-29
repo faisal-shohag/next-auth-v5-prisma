@@ -1,23 +1,56 @@
 import { PrismaAdapter } from "@auth/prisma-adapter"
-import NextAuth from "next-auth"
+import NextAuth, { AuthError } from "next-auth"
 import Google from 'next-auth/providers/google';
 import Github from 'next-auth/providers/github';
 import prisma from "./lib/prisma";
+import Credentials from 'next-auth/providers/credentials';
 
-export const { handlers, signIn, signOut, auth, unstable_update } = NextAuth({
+
+export const { handlers, signIn, signOut, auth } = NextAuth({
     trustHost: true,
     theme: {
         logo: "/logo.png"
     },
     adapter: PrismaAdapter(prisma),
-    providers: [Google, Github],
+    providers: [Google, Github, 
+        Credentials({
+            name: "Credentials",
+            credentials: {
+                username: { label: "Email", type: "text" }, // Change to email
+                password: { label: "Password", type: "password" }
+            },
+            async authorize(credentials) {
+                if (!credentials.username || !credentials.password) return null;
+
+                const user = await prisma.user.findUnique({
+                    where: {
+                        email: credentials?.username
+                    }
+                })
+                
+                if(!user) throw new AuthError("User not found")
+                
+                if(!credentials.password) throw new AuthError("Please provide your password!")
+                const isPasswordCorrect = credentials.password === user.password;
+
+                console.log(user, isPasswordCorrect)
+
+                if(!isPasswordCorrect) throw new AuthError("Password is incorrect")
+
+                if(!user.emailVerified) throw new AuthError("Please verify your email")
+
+                    const { password, ...userWithoutPass } = user;
+                    return userWithoutPass;
+            }
+        })
+    ],
     events: {
         async signIn({ user }) {
             // console.log("signIN", user)
         },
 
         async session(session) {
-            //console.log("session", session)
+            // console.log("session", session)
         }
     },
     callbacks: {

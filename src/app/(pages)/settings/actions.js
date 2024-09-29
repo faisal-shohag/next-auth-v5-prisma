@@ -1,6 +1,6 @@
 "use server"
 
-import { auth, unstable_update } from "@/auth"
+import { auth } from "@/auth"
 import prisma from "@/lib/prisma";
 import { updateProfileSchema } from "@/lib/validation"
 import { revalidatePath } from "next/cache";
